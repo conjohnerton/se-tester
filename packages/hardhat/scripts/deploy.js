@@ -6,13 +6,11 @@ const { utils } = require("ethers");
 const R = require("ramda");
 
 const main = async () => {
-
   console.log("\n\n 📡 Deploying...\n");
 
-
-  const yourContract = await deploy("YourContract") // <-- add in constructor args like line 16 vvvv
-
-
+  const yourContract = await deploy("FlashLoanReceiver", [
+    "0x88757f2f99175387ab4c6a4b3067c77a695b0349",
+  ]); // <-- add in constructor args like line 16
 
   // const exampleToken = await deploy("ExampleToken")
   // const examplePriceOracle = await deploy("ExamplePriceOracle")
@@ -27,7 +25,6 @@ const main = async () => {
   });
   */
 
-
   /*
 
   //If you want to send value to an address from the deployer
@@ -38,7 +35,6 @@ const main = async () => {
     value: ethers.utils.parseEther("0.001")
   })
   */
-
 
   console.log(
     " 💾  Artifacts (address, abi, and args) saved to: ",
@@ -60,7 +56,7 @@ const deploy = async (contractName, _args = [], overrides = {}) => {
     " 📄",
     chalk.cyan(contractName),
     "deployed to:",
-    chalk.magenta(deployed.address),
+    chalk.magenta(deployed.address)
   );
 
   if (!encoded || encoded.length <= 2) return deployed;
@@ -92,7 +88,9 @@ const abiEncodeArgs = (deployed, contractArgs) => {
 
 // checks if it is a Solidity file
 const isSolidity = (fileName) =>
-  fileName.indexOf(".sol") >= 0 && fileName.indexOf(".swp") < 0 && fileName.indexOf(".swap") < 0;
+  fileName.indexOf(".sol") >= 0 &&
+  fileName.indexOf(".swp") < 0 &&
+  fileName.indexOf(".swap") < 0;
 
 const readArgsFile = (contractName) => {
   let args = [];
