@@ -3,10 +3,10 @@ import { PageHeader } from "antd";
 
 export default function Header() {
   return (
-    <a href="https://github.com/austintgriffith/scaffold-eth" target="_blank" rel="noopener noreferrer">
+    <a href="https://github.com/conjohnerton/liqui-bot" target="_blank" rel="noopener noreferrer">
       <PageHeader
-        title="🏗 scaffold-eth"
-        subTitle="forkable Ethereum dev stack focused on fast product iteration"
+        title="🫖 Liqui-bot"
+        subTitle="a peace-of-mind bot that uses Aave flashloans to self-liquidate in case things go downhill ⛷️"
         style={{ cursor: "pointer" }}
       />
     </a>

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { BrowserRouter, Switch, Route, Link } from "react-router-dom";
 import "antd/dist/antd.css";
-import { JsonRpcProvider, Web3Provider } from "@ethersproject/providers";
+import { InfuraProvider, JsonRpcProvider, Web3Provider } from "@ethersproject/providers";
 import "./App.css";
 import { Row, Col, Button, Menu } from "antd";
 import Web3Modal from "web3modal";
@@ -20,26 +20,10 @@ import {
 import { Header, Account, Faucet, Ramp, Contract, GasGauge } from "./components";
 import { Transactor } from "./helpers";
 import { formatEther, parseEther } from "@ethersproject/units";
+import AccountDetailsFromBigNumbers from "./helpers/BigNumberToString";
 //import Hints from "./Hints";
-import { Hints, ExampleUI, Subgraph } from "./views";
-/*
-    Welcome to 🏗 scaffold-eth !
-
-    Code:
-    https://github.com/austintgriffith/scaffold-eth
-
-    Support:
-    https://t.me/joinchat/KByvmRe5wkR-8F_zz6AjpA
-    or DM @austingriffith on twitter or telegram
-
-    You should get your own Infura.io ID and put it in `constants.js`
-    (this is your connection to the main Ethereum network for ENS etc.)
-
-
-    📡 EXTERNAL CONTRACTS:
-    You can also bring in contract artifacts in `constants.js`
-    (and then use the `useExternalContractLoader()` hook!)
-*/
+// import { Hints, ExampleUI, Subgraph } from "./views";
+import UserInfo from "./components/UserInfo";
 import {
   INFURA_ID,
   LENDING_POOL_ABI,
@@ -48,7 +32,7 @@ import {
 } from "./constants";
 
 // 😬 Sorry for all the console logging 🤡
-const DEBUG = true;
+const DEBUG = false;
 
 // 🔭 block explorer URL
 const blockExplorer = "https://etherscan.io/"; // for xdai: "https://blockscout.com/poa/xdai/"
@@ -56,24 +40,23 @@ const blockExplorer = "https://etherscan.io/"; // for xdai: "https://blockscout.
 // 🛰 providers
 if (DEBUG) console.log("📡 Connecting to Mainnet Ethereum");
 //const mainnetProvider = getDefaultProvider("mainnet", { infura: INFURA_ID, etherscan: ETHERSCAN_KEY, quorum: 1 });
-// const mainnetProvider = new InfuraProvider("mainnet",INFURA_ID);
-const mainnetProvider = new JsonRpcProvider("https://mainnet.infura.io/v3/" + INFURA_ID);
-// ( ⚠️ Getting "failed to meet quorum" errors? Check your INFURA_ID)
-console.log("window.location.hostname", window.location.hostname);
+const mainnetProvider = new InfuraProvider("mainnet", INFURA_ID);
+
 // 🏠 Your local provider is usually pointed at your local blockchain
-const localProviderUrl = "http://" + window.location.hostname + ":8545"; // for xdai: https://dai.poa.network
+// const localProviderUrl = "http://" + window.location.hostname + ":8545"; // for xdai: https://dai.poa.network
 // as you deploy to other networks you can set REACT_APP_PROVIDER=https://dai.poa.network in packages/react-app/.env
-const localProviderUrlFromEnv = process.env.REACT_APP_PROVIDER ? process.env.REACT_APP_PROVIDER : localProviderUrl;
-if (DEBUG) console.log("🏠 Connecting to provider:", localProviderUrlFromEnv);
-const localProvider = new JsonRpcProvider(localProviderUrlFromEnv);
+// const localProviderUrlFromEnv = process.env.REACT_APP_PROVIDER ? process.env.REACT_APP_PROVIDER : localProviderUrl;
+// if (DEBUG) console.log("🏠 Connecting to provider:", localProviderUrlFromEnv);
+// const localProvider = new JsonRpcProvider(localProviderUrlFromEnv);
+const localProvider = undefined;
 
 function App(props) {
   const [injectedProvider, setInjectedProvider] = useState();
   /* 💵 this hook will get the price of ETH from 🦄 Uniswap: */
-  const price = useExchangePrice(mainnetProvider); //1 for xdai
+  const price = useExchangePrice(mainnetProvider); // 1 for xdai
 
   /* 🔥 this hook will get the price of Gas from ⛽️ EtherGasStation */
-  const gasPrice = useGasPrice("fast"); //1000000000 for xdai
+  const gasPrice = useGasPrice("fast"); // 1000000000 for xdai
 
   // For more hooks, check out 🔗eth-hooks at: https://www.npmjs.com/package/eth-hooks
 
@@ -103,49 +86,26 @@ function App(props) {
   const writeContracts = useContractLoader(userProvider);
   if (DEBUG) console.log("🔐 writeContracts", writeContracts);
 
-  // EXTERNAL CONTRACT EXAMPLE:
-  //
-  // If you want to bring in the mainnet DAI contract it would look like:
-  //const mainnetDAIContract = useExternalContractLoader(mainnetProvider, DAI_ADDRESS, DAI_ABI)
-  //console.log("🥇DAI contract on mainnet:",mainnetDAIContract)
-  //
-  // Then read your DAI balance like:
-  //const myMainnetBalance = useContractReader({DAI: mainnetDAIContract},"DAI", "balanceOf",["0x34aA3F359A9D614239015126635CE7732c18fDF3"])
+  // Gets Aave lending pool and user account info
   const LendingPoolAddressesProvider = useExternalContractLoader(
     injectedProvider,
     LENDING_POOL_ADDRESS_PROVIDER_ADDRESS,
     LENDING_POOL_ADDRESS_PROVIDER_ABI,
   );
-
-  console.log("lending pool provider", LendingPoolAddressesProvider);
-
   const LendingPoolAddress = useContractReader(
     { LendingPoolAddressesProvider },
     "LendingPoolAddressesProvider",
     "getLendingPool",
     [],
   );
-
   const LendingPool = useExternalContractLoader(injectedProvider, LendingPoolAddress, LENDING_POOL_ABI);
-
-  console.log("Lending pool", LendingPool);
-
-  const aaveAccountData = useContractReader({ LendingPool }, "LendingPool", "getUserAccountData", [address]);
-  console.log(aaveAccountData);
-  // console.log("🥇DAI contract on mainnet:", await LendingPoolAddressesProviderInstance.Lending);
-  //
-  // Then read your DAI balance like:
-  //const myMainnetBalance = useContractReader({DAI: mainnetDAIContract},"DAI", "balanceOf",["0x34aA3F359A9D614239015126635CE7732c18fDF3"])
-
-  //
-
-  // keep track of a variable from the contract in the local React state:
-  const purpose = useContractReader(readContracts, "YourContract", "purpose");
-  console.log("🤗 purpose:", purpose);
-
-  //📟 Listen for broadcast events
-  const setPurposeEvents = useEventListener(readContracts, "YourContract", "SetPurpose", localProvider, 1);
-  console.log("📟 SetPurpose events:", setPurposeEvents);
+  const aaveAccountDataReader = useContractReader({ LendingPool }, "LendingPool", "getUserAccountData", [address]);
+  const [accountData, setAccountData] = useState(null);
+  useEffect(() => {
+    if (aaveAccountDataReader) {
+      setAccountData(AccountDetailsFromBigNumbers(aaveAccountDataReader));
+    }
+  }, [aaveAccountDataReader]);
 
   /*
   const addressFromENS = useResolveName(mainnetProvider, "austingriffith.eth");
@@ -168,36 +128,55 @@ function App(props) {
     setRoute(window.location.pathname);
   }, [setRoute]);
 
-  let faucetHint = "";
-  const [faucetClicked, setFaucetClicked] = useState(false);
-  if (
-    !faucetClicked &&
-    localProvider &&
-    localProvider.getSigner() &&
-    yourLocalBalance &&
-    formatEther(yourLocalBalance) <= 0
-  ) {
-    faucetHint = (
-      <div style={{ padding: 16 }}>
-        <Button
-          type={"primary"}
-          onClick={() => {
-            faucetTx({
-              to: address,
-              value: parseEther("0.01"),
-            });
-            setFaucetClicked(true);
-          }}
-        >
-          💰 Grab funds from the faucet ⛽️
-        </Button>
-      </div>
-    );
-  }
+  // let faucetHint = "";
+  // const [faucetClicked, setFaucetClicked] = useState(false);
+  // if (
+  //   !faucetClicked &&
+  //   localProvider &&
+  //   localProvider.getSigner() &&
+  //   yourLocalBalance &&
+  //   formatEther(yourLocalBalance) <= 0
+  // ) {
+  //   faucetHint = (
+  //     <div style={{ padding: 16 }}>
+  //       <Button
+  //         type={"primary"}
+  //         onClick={() => {
+  //           faucetTx({
+  //             to: address,
+  //             value: parseEther("0.01"),
+  //           });
+  //           setFaucetClicked(true);
+  //         }}
+  //       >
+  //         💰 Grab funds from the faucet ⛽️
+  //       </Button>
+  //     </div>
+  //   );
+  // }
+
+  const contracts = userProvider?.getSigner() && (
+    <>
+      <Contract
+        name="FlashLoanReceiver"
+        signer={userProvider.getSigner()}
+        provider={injectedProvider}
+        // address={address}
+        blockExplorer={blockExplorer}
+      />
+      {/* <Contract
+        name="LendingPool"
+        customContract={LendingPool}
+        signer={userProvider.getSigner()}
+        provider={injectedProvider}
+        // address={address}
+        blockExplorer={blockExplorer}
+      /> */}
+    </>
+  );
 
   return (
     <div className="App">
-      {/* ✏️ Edit the header and change the title to your project name */}
       <Header />
 
       <BrowserRouter>
@@ -209,19 +188,20 @@ function App(props) {
               }}
               to="/"
             >
-              YourContract
+              Contracts
             </Link>
           </Menu.Item>
-          <Menu.Item key="/hints">
+          <Menu.Item key="/userInfo">
             <Link
               onClick={() => {
-                setRoute("/hints");
+                setRoute("/userInfo");
               }}
-              to="/hints"
+              to="/userInfo"
             >
-              Hints
+              User Info
             </Link>
           </Menu.Item>
+          {/*
           <Menu.Item key="/exampleui">
             <Link
               onClick={() => {
@@ -241,58 +221,24 @@ function App(props) {
             >
               Subgraph
             </Link>
-          </Menu.Item>
+          </Menu.Item> */}
         </Menu>
 
         <Switch>
           <Route exact path="/">
-            {/*
-                🎛 this scaffolding is full of commonly used components
-                this <Contract/> component will automatically parse your ABI
-                and give you a form to interact with it locally
-            */}
-            <Contract
-              name="YourContract"
-              signer={userProvider.getSigner()}
-              provider={localProvider}
-              address={address}
-              blockExplorer={blockExplorer}
-            />
-
-            {/* Uncomment to display and interact with an external contract (DAI on mainnet):
-            <Contract
-              name="DAI"
-              customContract={mainnetDAIContract}
-              signer={userProvider.getSigner()}
-              provider={mainnetProvider}
-              address={address}
-              blockExplorer={blockExplorer}
-            />
-            */}
+            {contracts}
           </Route>
-          <Route path="/hints">
-            <Hints
-              address={address}
-              yourLocalBalance={yourLocalBalance}
-              mainnetProvider={mainnetProvider}
-              price={price}
+          <Route path="/userInfo">
+            <UserInfo
+              availableBorrowsETH={accountData?.availableBorrowsETH}
+              currentLiquidationThreshold={accountData?.currentLiquidationThreshold}
+              healthFactor={accountData?.healthFactor}
+              ltv={accountData?.ltv}
+              totalCollateralETH={accountData?.totalCollateralETH}
+              totalDebtETH={accountData?.totalDebtETH}
             />
           </Route>
-          <Route path="/exampleui">
-            <ExampleUI
-              address={address}
-              userProvider={userProvider}
-              mainnetProvider={mainnetProvider}
-              localProvider={localProvider}
-              yourLocalBalance={yourLocalBalance}
-              price={price}
-              tx={tx}
-              writeContracts={writeContracts}
-              readContracts={readContracts}
-              purpose={purpose}
-              setPurposeEvents={setPurposeEvents}
-            />
-          </Route>
+          {/*
           <Route path="/subgraph">
             <Subgraph
               subgraphUri={props.subgraphUri}
@@ -300,7 +246,7 @@ function App(props) {
               writeContracts={writeContracts}
               mainnetProvider={mainnetProvider}
             />
-          </Route>
+          </Route> */}
         </Switch>
       </BrowserRouter>
 
@@ -308,59 +254,26 @@ function App(props) {
       <div style={{ position: "fixed", textAlign: "right", right: 0, top: 0, padding: 10 }}>
         <Account
           address={address}
-          localProvider={localProvider}
+          // localProvider={localProvider}
           userProvider={userProvider}
-          mainnetProvider={mainnetProvider}
+          // mainnetProvider={mainnetProvider}
           price={price}
           web3Modal={web3Modal}
           loadWeb3Modal={loadWeb3Modal}
           logoutOfWeb3Modal={logoutOfWeb3Modal}
           blockExplorer={blockExplorer}
         />
-        {faucetHint}
       </div>
 
       {/* 🗺 Extra UI like gas price, eth price, faucet, and support: */}
       <div style={{ position: "fixed", textAlign: "left", left: 0, bottom: 20, padding: 10 }}>
-        <Row align="middle" gutter={[4, 4]}>
+        <Row align="middle" gutter={[0, 4]}>
           <Col span={8}>
             <Ramp price={price} address={address} />
           </Col>
 
-          <Col span={8} style={{ textAlign: "center", opacity: 0.8 }}>
+          <Col span={3} offset={6} style={{ textAlign: "center", opacity: 0.8 }}>
             <GasGauge gasPrice={gasPrice} />
-          </Col>
-          <Col span={8} style={{ textAlign: "center", opacity: 1 }}>
-            <Button
-              onClick={() => {
-                window.open("https://t.me/joinchat/KByvmRe5wkR-8F_zz6AjpA");
-              }}
-              size="large"
-              shape="round"
-            >
-              <span style={{ marginRight: 8 }} role="img" aria-label="support">
-                💬
-              </span>
-              Support
-            </Button>
-          </Col>
-        </Row>
-
-        <Row align="middle" gutter={[4, 4]}>
-          <Col span={24}>
-            {
-              /*  if the local provider has a signer, let's show the faucet:  */
-              localProvider &&
-              localProvider.connection &&
-              localProvider.connection.url &&
-              localProvider.connection.url.indexOf(window.location.hostname) >= 0 &&
-              !process.env.REACT_APP_PROVIDER &&
-              price > 1 ? (
-                <Faucet localProvider={localProvider} price={price} ensProvider={mainnetProvider} />
-              ) : (
-                ""
-              )
-            }
           </Col>
         </Row>
       </div>
